@@ -83,47 +83,6 @@ DATASELECTION_CARD = [
                 ],
                 className="mb-3",
             ),
-            dbc.InputGroup(
-                [
-                    dbc.InputGroupText("Filename"),
-                    dbc.Select(
-                        id="filename",
-                        options=[],
-                        value="GNPS00002_A3_p.mzML"
-                    )
-                ],
-                className="mb-3",
-            ),
-            html.H5(children='Plotting Options'),
-            dbc.InputGroup(
-                [
-                    dbc.InputGroupText("x_axis"),
-                    dbc.Input(id='x_axis', placeholder="Enter Query", value=""),
-                ],
-                className="mb-3",
-            ),
-            dbc.InputGroup(
-                [
-                    dbc.InputGroupText("y_axis"),
-                    dbc.Input(id='y_axis', placeholder="Enter Query", value=""),
-                ],
-                className="mb-3",
-            ),
-            dbc.InputGroup(
-                [
-                    dbc.InputGroupText("facet_column"),
-                    dbc.Input(id='facet_column', placeholder="Enter Facet", value=""),
-                ],
-                className="mb-3",
-            ),
-            html.Br(),
-            dbc.InputGroup(
-                [
-                    dbc.InputGroupText("scan"),
-                    dbc.Input(id='scan', placeholder="Enter Scan", value=""),
-                ],
-                className="mb-3",
-            ),
             html.Br(),
             dbc.Row([
                 dbc.Col(
@@ -136,8 +95,25 @@ DATASELECTION_CARD = [
                 dbc.Col(
                     html.A(
                         dbc.Button("Query Your Files", color="primary"),
-                        href="https://gnps.ucsd.edu/ProteoSAFe/QueryFiles",
+                        href="",
                         id="query_gnps_link",
+                        className="d-grid gap-2"
+                    )
+                ),
+            ]),
+            
+            dbc.Row([
+                dbc.Col(
+                    html.A(
+                        dbc.Button("Interactively Query GNPS Libraries", color="primary"),
+                        href="https://massql-analysis.gnps2.org/MassQL_GNPS_Library_Searching",
+                        className="d-grid gap-2"
+                    )
+                ),
+                dbc.Col(
+                    html.A(
+                        dbc.Button("Write Queries with MassQL GPT4", color="primary"),
+                        href="https://massql-analysis.gnps2.org/MassQL_Chatbot",
                         className="d-grid gap-2"
                     )
                 ),
@@ -349,11 +325,6 @@ def _get_url_param(param_dict, key, default):
 
 @dash_app.callback([
                 Output('query', 'value'),
-                Output('filename', 'value'),
-                Output('x_axis', 'value'),
-                Output('y_axis', 'value'),
-                Output('facet_column', 'value'),
-                Output('scan', 'value'),
                 Output('precursor_mz', 'value'),
                 Output('x_value', 'value'),
                 Output('y_value', 'value'),
@@ -370,11 +341,6 @@ def determine_params(search):
         query_dict = {}
 
     query = _get_url_param(query_dict, "query", 'QUERY scaninfo(MS2DATA) WHERE MS2PROD=226.18:TOLERANCEPPM=5')
-    filename = _get_url_param(query_dict, "filename", dash.no_update)
-    x_axis = _get_url_param(query_dict, "x_axis", dash.no_update)
-    y_axis = _get_url_param(query_dict, "y_axis", dash.no_update)
-    facet_column = _get_url_param(query_dict, "facet_column", dash.no_update)
-    scan = _get_url_param(query_dict, "scan", dash.no_update)
     
     precursor_mz = _get_url_param(query_dict, "precursor_mz", dash.no_update)
     x_value = _get_url_param(query_dict, "x_value", dash.no_update)
@@ -382,22 +348,9 @@ def determine_params(search):
     ms1_usi = _get_url_param(query_dict, "ms1_usi", dash.no_update)
     ms2_usi = _get_url_param(query_dict, "ms2_usi", dash.no_update)
 
-    return [query, filename, x_axis, y_axis, facet_column, scan, precursor_mz, x_value, y_value, ms1_usi, ms2_usi]
+    return [query, precursor_mz, x_value, y_value, ms1_usi, ms2_usi]
 
-@dash_app.callback([
-                Output('filename', 'options'),
-              ],
-              [
-                  Input('url', 'search')
-              ])
-def determine_files(search):
-    file_list = glob.glob("./test/*.mzML")
-    file_list += glob.glob("./test/*.json")
-    file_list += glob.glob("./test/*.mgf")
-    file_list = [os.path.basename(filename) for filename in file_list]
-    file_list = [{"label": filename, "value": filename} for filename in file_list]
 
-    return [file_list]
 
 def _render_parse(query):
     response_list = []
@@ -533,131 +486,6 @@ def draw_parse_drawing(query, precursor_value, x_value, y_value, ms1_usi, ms2_us
         
     return [merged_list]
 
-@dash_app.callback([
-                Output('output', 'children'),
-              ],
-              [
-                  Input('query', 'value'),
-                  Input('filename', 'value')
-            ])
-def draw_output(query, filename):
-    try:
-        parse_results = msql_parser.parse_msql(query)
-
-        full_filepath = os.path.join("/app/test", filename)
-        results_list = tasks.task_executequery.delay(query, full_filepath)
-        results_list = results_list.get()
-
-        if len(results_list) == 0:
-            return ["No Matches"]
-    except:
-        return ["Query Error"]
-
-    # Doing enrichment if possible
-
-    table = dash_table.DataTable(
-        id='table',
-        columns=[{"name": i, "id": i} for i in results_list[0].keys()],
-        data=results_list,
-        page_size=10,
-        sort_action='native',
-        filter_action='native',
-        export_format='csv'
-    )
-
-    return [table]
-
-
-@dash_app.callback([
-                Output('plotting', 'children'),
-              ],
-              [
-                  Input('query', 'value'),
-                  Input('filename', 'value'),
-                  Input('x_axis', 'value'),
-                  Input('y_axis', 'value'),
-                  Input('facet_column', 'value')
-            ])
-def draw_plot(query, filename, x_axis, y_axis, facet_column):
-    try:
-        parse_results = msql_parser.parse_msql(query)
-    except:
-        return ["Parse Error"]
-
-    full_filepath = os.path.join("test", filename)
-    results_list = tasks.task_executequery.delay(query, full_filepath)
-    results_list = results_list.get()
-
-    results_df = pd.DataFrame(results_list)
-
-    try:
-        fig = px.scatter(results_df, x=x_axis, y=y_axis, facet_row=facet_column)
-    except:
-        fig = px.scatter(results_df, x=x_axis, y=y_axis)
-
-    return [dcc.Graph(figure=fig)]
-
-
-@dash_app.callback([
-                Output('spectrumplot', 'children'),
-              ],
-              [
-                  Input('filename', 'value'),
-                  Input('scan', 'value'),
-            ])
-def draw_spectrum(filename, scan):
-    full_filepath = os.path.join("test", filename)
-
-    if not ".mzML" in full_filepath:
-        return
-
-    MS_precisions = {
-        1: 5e-6,
-        2: 20e-6,
-        3: 20e-6,
-        4: 20e-6,
-        5: 20e-6,
-        6: 20e-6,
-        7: 20e-6,
-    }
-
-    
-    run = pymzml.run.Reader(full_filepath, MS_precisions=MS_precisions)
-
-    try:
-        spectrum = run[int(scan)]
-    except:
-        spectrum = run[str(scan)]
-    peaks = spectrum.peaks("raw")
-
-    # Drawing the spectrum object
-    mzs = [peak[0] for peak in peaks]
-    ints = [peak[1] for peak in peaks]
-    neg_ints = [intensity * -1 for intensity in ints]
-
-    interactive_fig = go.Figure(
-        data=go.Scatter(x=mzs, y=ints, 
-            mode='markers+text',
-            marker=dict(size=0.00001),
-            error_y=dict(
-                symmetric=False,
-                arrayminus=[0]*len(neg_ints),
-                array=neg_ints,
-                width=0
-            ),
-            hoverinfo="x",
-            textposition="top right",
-        )
-    )
-
-    interactive_fig.update_layout(title='{}'.format(scan))
-    interactive_fig.update_xaxes(title_text='m/z')
-    interactive_fig.update_yaxes(title_text='intensity')
-    interactive_fig.update_xaxes(showline=True, linewidth=1, linecolor='black')
-    interactive_fig.update_yaxes(showline=True, linewidth=1, linecolor='black')
-    interactive_fig.update_yaxes(range=[0, max(ints) * 1.2])
-
-    return [dcc.Graph(figure=interactive_fig)]
 
 
 ### Rendering URL
@@ -666,25 +494,15 @@ def draw_spectrum(filename, scan):
               ],
                 [
                     Input('query', 'value'),
-                    Input('filename', 'value'),
-                    Input('x_axis', 'value'),
-                    Input('y_axis', 'value'),
-                    Input('facet_column', 'value'),
-                    Input('scan', 'value'),
                     Input('precursor_mz', 'value'),
                     Input('x_value', 'value'),
                     Input('y_value', 'value'),
                     Input('ms1_usi', 'value'),
                     Input('ms2_usi', 'value'),
                 ])
-def draw_url(query, filename, precursor_mz, x_axis, y_axis, facet_column, scan, x_value, y_value, ms1_usi, ms2_usi):
+def draw_url(query, precursor_mz, x_value, y_value, ms1_usi, ms2_usi):
     params = {}
     params["query"] = query
-    params["filename"] = filename
-    params["x_axis"] = x_axis
-    params["y_axis"] = y_axis
-    params["facet_column"] = facet_column
-    params["scan"] = scan
     params["precursor_mz"] = precursor_mz
     params["x_value"] = x_value
     params["y_value"] = y_value

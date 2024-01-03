@@ -101,7 +101,7 @@ DATASELECTION_CARD = [
                     )
                 ),
             ]),
-            
+            html.Br(),
             dbc.Row([
                 dbc.Col(
                     html.A(

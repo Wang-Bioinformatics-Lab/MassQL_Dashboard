@@ -24,7 +24,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 8000M
+          memory: 16000M
 
   msql-worker:
     build:
@@ -51,8 +51,13 @@ services:
   msql-rabbitmq:
     container_name: msql-rabbitmq
     image: rabbitmq
+    restart: on-failure
     networks:
       - default
+    deploy:
+      resources:
+        limits:
+          memory: 16000M
 
   msql-redis:
     container_name: msql-redis
@@ -60,6 +65,10 @@ services:
     restart: on-failure
     networks:
       - default
+    deploy:
+      resources:
+        limits:
+          memory: 16000M
 
 networks:
   nginx-net:

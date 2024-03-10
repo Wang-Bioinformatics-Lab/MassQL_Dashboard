@@ -29,7 +29,6 @@ from collections import defaultdict
 import uuid
 
 from flask_caching import Cache
-import tasks
 from massql import msql_parser
 from massql import msql_visualizer
 from massql import msql_translator

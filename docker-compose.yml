@@ -26,49 +26,6 @@ services:
         limits:
           memory: 16000M
 
-  msql-worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: msql-worker
-    volumes:
-      - ./logs:/app/logs:rw
-      - ../tests/data/:/app/test:rw # This is input test query data
-      - ./temp:/app/temp:rw
-    command: /app/run_worker.sh
-    restart: on-failure
-    depends_on: 
-      - msql-redis
-      - msql-rabbitmq
-    networks:
-      - default
-      - nginx-net
-    deploy:
-      resources:
-        limits:
-          memory: 64000M
-
-  msql-rabbitmq:
-    container_name: msql-rabbitmq
-    image: rabbitmq
-    restart: on-failure
-    networks:
-      - default
-    deploy:
-      resources:
-        limits:
-          memory: 16000M
-
-  msql-redis:
-    container_name: msql-redis
-    image: redis
-    restart: on-failure
-    networks:
-      - default
-    deploy:
-      resources:
-        limits:
-          memory: 16000M
 
 networks:
   nginx-net:
